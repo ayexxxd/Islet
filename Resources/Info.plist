@@ -22,7 +22,13 @@
     <true/>
     <key>NSHighResolutionCapable</key>
     <true/>
+    <key>NSCalendarsFullAccessUsageDescription</key>
+    <string>Islet shows your upcoming events in the island.</string>
+    <key>NSCalendarsUsageDescription</key>
+    <string>Islet shows your upcoming events in the island.</string>
+    <key>NSCameraUsageDescription</key>
+    <string>Islet uses the camera only for the mirror, and only while you switch it on.</string>
     <key>NSAppleEventsUsageDescription</key>
-    <string>Islet reads what is playing in Spotify and Music and sends play, pause and skip commands.</string>
+    <string>Islet reads what is playing in Spotify and Music, sends playback commands, and toggles dark mode when you ask.</string>
 </dict>
 </plist>

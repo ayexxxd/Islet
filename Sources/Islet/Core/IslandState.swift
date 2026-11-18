@@ -2,7 +2,7 @@ import AppKit
 import SwiftUI
 
 enum IslandTab: String, CaseIterable, Identifiable {
-    case media, notes, tools
+    case media, notes, tools, extras
 
     var id: String { rawValue }
     var title: String { rawValue.capitalized }
@@ -12,6 +12,7 @@ enum IslandTab: String, CaseIterable, Identifiable {
         case .media: return "music.note"
         case .notes: return "note.text"
         case .tools: return "square.grid.2x2.fill"
+        case .extras: return "sparkles"
         }
     }
 }
@@ -80,6 +81,11 @@ final class IslandState: ObservableObject {
             size.height += Self.toastHeight
         }
         return size
+    }
+
+    /// The tab actually on screen. Falls back when the chosen tab was switched off.
+    var visibleTab: IslandTab? {
+        settings.isTabEnabled(tab) ? tab : settings.enabledTabs.first
     }
 
     func expand(tab newTab: IslandTab? = nil) {

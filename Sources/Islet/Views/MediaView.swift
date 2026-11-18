@@ -92,27 +92,55 @@ struct MediaView: View {
     }
 
     private var controls: some View {
-        HStack(spacing: 26) {
+        HStack(spacing: 0) {
+            if settings.playerExtrasEnabled {
+                Button(action: { media.toggleShuffle() }) {
+                    Image(systemName: "shuffle")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(media.isShuffling ? accent : Color.white.opacity(0.45))
+                        .frame(width: 26, height: 30)
+                        .contentShape(Rectangle())
+                }
+                .help("Shuffle")
+                .frame(width: 66, alignment: .leading)
+            }
+
             Spacer(minLength: 0)
-            Button(action: { media.previous() }) {
-                Image(systemName: "backward.fill")
-                    .font(.system(size: 17))
-                    .frame(width: 34, height: 30)
-                    .contentShape(Rectangle())
-            }
-            Button(action: { media.togglePlayPause() }) {
-                Image(systemName: media.isPlaying ? "pause.fill" : "play.fill")
-                    .font(.system(size: 24))
-                    .frame(width: 38, height: 30)
-                    .contentShape(Rectangle())
-            }
-            Button(action: { media.next() }) {
-                Image(systemName: "forward.fill")
-                    .font(.system(size: 17))
-                    .frame(width: 34, height: 30)
-                    .contentShape(Rectangle())
+            HStack(spacing: 14) {
+                Button(action: { media.previous() }) {
+                    Image(systemName: "backward.fill")
+                        .font(.system(size: 17))
+                        .frame(width: 34, height: 30)
+                        .contentShape(Rectangle())
+                }
+                Button(action: { media.togglePlayPause() }) {
+                    Image(systemName: media.isPlaying ? "pause.fill" : "play.fill")
+                        .font(.system(size: 24))
+                        .frame(width: 38, height: 30)
+                        .contentShape(Rectangle())
+                }
+                Button(action: { media.next() }) {
+                    Image(systemName: "forward.fill")
+                        .font(.system(size: 17))
+                        .frame(width: 34, height: 30)
+                        .contentShape(Rectangle())
+                }
             }
             Spacer(minLength: 0)
+
+            if settings.playerExtrasEnabled {
+                HStack(spacing: 4) {
+                    Image(systemName: media.volume < 1 ? "speaker.slash.fill" : "speaker.wave.2.fill")
+                        .font(.system(size: 9))
+                        .foregroundColor(Color.white.opacity(0.45))
+                        .frame(width: 14)
+                    ScrubBar(progress: media.volume / 100, tint: Color.white.opacity(0.75)) { value in
+                        media.setVolume(value * 100)
+                    }
+                }
+                .frame(width: 66)
+                .help("Player volume")
+            }
         }
         .buttonStyle(IslandButtonStyle())
         .foregroundColor(.white)

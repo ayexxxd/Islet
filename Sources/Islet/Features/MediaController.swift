@@ -50,6 +50,8 @@ final class MediaController: ObservableObject {
     @Published private(set) var source: MediaSource?
     @Published private(set) var position: Double = 0
     @Published private(set) var positionDate = Date()
+    @Published private(set) var volume: Double = 50
+    @Published private(set) var isShuffling = false
 
     private struct SourceState {
         var track: NowPlaying
@@ -57,6 +59,8 @@ final class MediaController: ObservableObject {
         var position: Double
         var date: Date
         var artworkURL: String?
+        var volume: Double?
+        var isShuffling: Bool?
     }
 
     private static let separator = "|~|"
@@ -66,10 +70,22 @@ final class MediaController: ObservableObject {
     private var pollTimer: Timer?
     private var artworkKey: String?
     private var observers: [NSObjectProtocol] = []
+    private var volumeSetAt = Date.distantPast
 
     // MARK: - Lifecycle
 
+    /// Stops listening to players and clears what is shown.
+    func stop() {
+        pollTimer?.invalidate()
+        pollTimer = nil
+        observers.forEach { DistributedNotificationCenter.default().removeObserver($0) }
+        observers.removeAll()
+        states.removeAll()
+        resolve()
+    }
+
     func start() {
+        guard pollTimer == nil else { return }
         for source in MediaSource.allCases {
             let token = DistributedNotificationCenter.default().addObserver(
                 forName: source.notificationName, object: nil, queue: .main
@@ -135,6 +151,24 @@ final class MediaController: ObservableObject {
         run("tell application \"\(source.appName)\" to set player position to \(seconds)")
     }
 
+    /// Sets the player's own volume, from 0 to 100.
+    func setVolume(_ value: Double) {
+        guard let source else { return }
+        let clamped = min(max(value, 0), 100)
+        volume = clamped
+        volumeSetAt = Date()
+        run("tell application \"\(source.appName)\" to set sound volume to \(Int(clamped.rounded()))")
+    }
+
+    func toggleShuffle() {
+        guard let source else { return }
+        let newValue = !isShuffling
+        isShuffling = newValue
+        volumeSetAt = Date()
+        let property = source == .spotify ? "shuffling" : "shuffle enabled"
+        run("tell application \"\(source.appName)\" to set \(property) to \(newValue)")
+    }
+
     func open(_ source: MediaSource) {
         guard let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: source.bundleID) else { return }
         NSWorkspace.shared.openApplication(at: url, configuration: NSWorkspace.OpenConfiguration(), completionHandler: nil)
@@ -191,7 +225,7 @@ final class MediaController: ObservableObject {
             tell application "Spotify"
                 if player state is stopped then return "stopped"
                 set t to current track
-                return (player state as string) & "\(sep)" & (name of t) & "\(sep)" & (artist of t) & "\(sep)" & (album of t) & "\(sep)" & (duration of t) & "\(sep)" & (player position) & "\(sep)" & (id of t) & "\(sep)" & (artwork url of t)
+                return (player state as string) & "\(sep)" & (name of t) & "\(sep)" & (artist of t) & "\(sep)" & (album of t) & "\(sep)" & (duration of t) & "\(sep)" & (player position) & "\(sep)" & (id of t) & "\(sep)" & (artwork url of t) & "\(sep)" & (sound volume) & "\(sep)" & (shuffling)
             end tell
             """
         case .music:
@@ -199,7 +233,7 @@ final class MediaController: ObservableObject {
             tell application "Music"
                 if player state is stopped then return "stopped"
                 set t to current track
-                return (player state as string) & "\(sep)" & (name of t) & "\(sep)" & (artist of t) & "\(sep)" & (album of t) & "\(sep)" & (duration of t) & "\(sep)" & (player position) & "\(sep)" & (name of t) & (artist of t) & (album of t)
+                return (player state as string) & "\(sep)" & (name of t) & "\(sep)" & (artist of t) & "\(sep)" & (album of t) & "\(sep)" & (duration of t) & "\(sep)" & (player position) & "\(sep)" & (name of t) & (artist of t) & (album of t) & "\(sep)" & "" & "\(sep)" & (sound volume) & "\(sep)" & (shuffle enabled)
             end tell
             """
         }
@@ -223,7 +257,9 @@ final class MediaController: ObservableObject {
             isPlaying: parts[0].lowercased() == "playing",
             position: number(parts[5]),
             date: Date(),
-            artworkURL: parts.count > 7 ? parts[7] : nil
+            artworkURL: parts.count > 7 && !parts[7].isEmpty ? parts[7] : nil,
+            volume: parts.count > 8 ? number(parts[8]) : nil,
+            isShuffling: parts.count > 9 ? parts[9].lowercased() == "true" : nil
         )
     }
 
@@ -257,6 +293,11 @@ final class MediaController: ObservableObject {
         if isPlaying != state.isPlaying { isPlaying = state.isPlaying }
         position = state.position
         positionDate = state.date
+        // Skip values read just after a local change, so the controls do not jump back.
+        if Date().timeIntervalSince(volumeSetAt) > 2.5 {
+            if let newVolume = state.volume, abs(newVolume - volume) > 0.5 { volume = newVolume }
+            if let shuffling = state.isShuffling, shuffling != isShuffling { isShuffling = shuffling }
+        }
         loadArtworkIfNeeded(for: chosen, state: state)
     }
 

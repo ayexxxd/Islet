@@ -11,6 +11,8 @@ final class AppModel {
     let clipboard = ClipboardManager()
     let shelf = ShelfStore()
     let keepAwake = KeepAwake()
+    let calendar = CalendarManager()
+    let camera = CameraManager()
 
     private var bag = Set<AnyCancellable>()
 
@@ -19,12 +21,34 @@ final class AppModel {
     }
 
     func start() {
-        media.start()
+        settings.$mediaEnabled
+            .removeDuplicates()
+            .receive(on: RunLoop.main)
+            .sink { [weak self] enabled in
+                if enabled { self?.media.start() } else { self?.media.stop() }
+            }
+            .store(in: &bag)
+
+        settings.$mirrorEnabled
+            .removeDuplicates()
+            .receive(on: RunLoop.main)
+            .sink { [weak self] enabled in if !enabled { self?.camera.stop() } }
+            .store(in: &bag)
+
+        settings.$keepAwakeEnabled
+            .removeDuplicates()
+            .receive(on: RunLoop.main)
+            .sink { [weak self] enabled in
+                guard let self, !enabled, self.keepAwake.isOn else { return }
+                self.keepAwake.toggle()
+            }
+            .store(in: &bag)
         clipboard.limit = settings.clipboardLimit
         if settings.clipboardEnabled { clipboard.start() }
 
         // The compact island widens while music plays.
-        media.$isPlaying
+        Publishers.CombineLatest(media.$isPlaying, settings.$mediaEnabled)
+            .map { $0 && $1 }
             .removeDuplicates()
             .receive(on: RunLoop.main)
             .sink { [weak self] live in self?.state.hasLiveActivity = live }
@@ -37,7 +61,7 @@ final class AppModel {
             .dropFirst()
             .debounce(for: .milliseconds(250), scheduler: RunLoop.main)
             .sink { [weak self] _ in
-                guard let self, self.settings.showTrackToasts, !self.state.isExpanded,
+                guard let self, self.settings.mediaEnabled, self.settings.showTrackToasts, !self.state.isExpanded,
                       self.media.isPlaying, let track = self.media.track else { return }
                 let text = track.artist.isEmpty ? track.title : "\(track.title) · \(track.artist)"
                 self.state.show(Toast(icon: "music.note", text: text))
@@ -49,7 +73,7 @@ final class AppModel {
             .removeDuplicates()
             .receive(on: RunLoop.main)
             .sink { [weak self] targeted in
-                guard let self, targeted else { return }
+                guard let self, targeted, self.settings.shelfEnabled else { return }
                 self.state.expand(tab: .tools)
             }
             .store(in: &bag)

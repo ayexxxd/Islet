@@ -35,12 +35,60 @@ struct SettingsView: View {
                         .foregroundColor(.secondary)
                 }
                 Toggle("Haptic feedback on open", isOn: $settings.hapticFeedback)
-                Picker("Open on tab", selection: $settings.defaultTab) {
-                    ForEach(IslandTab.allCases) { tab in
-                        Text(tab.title).tag(tab)
+                if settings.enabledTabs.count > 1 {
+                    Picker("Open on tab", selection: $settings.defaultTab) {
+                        ForEach(settings.enabledTabs) { tab in
+                            Text(tab.title).tag(tab)
+                        }
                     }
+                    Toggle("Reopen on the last tab I used", isOn: $settings.rememberLastTab)
                 }
-                Toggle("Reopen on the last tab I used", isOn: $settings.rememberLastTab)
+            }
+
+            Section {
+                Toggle("Media player", isOn: $settings.mediaEnabled)
+                if settings.mediaEnabled {
+                    Group {
+                        Toggle("Shuffle and volume controls", isOn: $settings.playerExtrasEnabled)
+                        Toggle("Animated audio bars", isOn: $settings.showVisualizer)
+                        Toggle("Peek the song title when the track changes", isOn: $settings.showTrackToasts)
+                    }
+                    .padding(.leading, 16)
+                }
+
+                Toggle("Notes", isOn: $settings.notesEnabled)
+
+                Toggle("Clipboard history", isOn: $settings.clipboardEnabled)
+                if settings.clipboardEnabled {
+                    Group {
+                        Stepper(value: $settings.clipboardLimit, in: 5...30) {
+                            Text("Remember \(settings.clipboardLimit) items")
+                        }
+                        Button("Clear history") { clipboard.clear() }
+                        Text("History stays in memory only and is gone when Islet quits. Items flagged as secrets by password managers are skipped.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(.leading, 16)
+                }
+
+                Toggle("File shelf", isOn: $settings.shelfEnabled)
+                Toggle("Calendar", isOn: $settings.calendarEnabled)
+                Toggle("Camera mirror", isOn: $settings.mirrorEnabled)
+                Toggle("Quick actions", isOn: $settings.quickActionsEnabled)
+                Toggle("Passwords shortcut", isOn: $settings.passwordsEnabled)
+                if settings.passwordsEnabled {
+                    Text("Adds a key button to the island header that opens Apple's Passwords app.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .padding(.leading, 16)
+                }
+                Toggle("Keep awake button", isOn: $settings.keepAwakeEnabled)
+                Toggle("Pin button", isOn: $settings.pinButtonEnabled)
+            } header: {
+                Text("Features")
+            } footer: {
+                Text("Anything switched off is removed from the island. A tab disappears once all of its features are off.")
             }
 
             Section("Size") {
@@ -55,9 +103,16 @@ struct SettingsView: View {
 
             Section("Shortcuts") {
                 Toggle("Global keyboard shortcuts", isOn: $settings.hotKeysEnabled)
-                LabeledContent("Open or close the island", value: "⌃⌥Space")
-                LabeledContent("New quick note", value: "⌃⌥N")
-                LabeledContent("Close while typing", value: "Esc")
+                if settings.hotKeysEnabled {
+                    LabeledContent("Open or close the island", value: "⌃⌥Space")
+                    if settings.notesEnabled {
+                        LabeledContent("New quick note", value: "⌃⌥N")
+                    }
+                    if settings.passwordsEnabled {
+                        LabeledContent("Open Passwords", value: "⌃⌥P")
+                    }
+                }
+                LabeledContent("Close the island", value: "Esc")
             }
 
             Section("Appearance") {
@@ -72,31 +127,17 @@ struct SettingsView: View {
                         Text(material.title).tag(material)
                     }
                 }
-                Text("Liquid Glass needs macOS 26 or later. Older systems get a frosted blur instead.")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                if settings.material == .glass {
+                    Text("Liquid Glass needs macOS 26 or later. Older systems get a frosted blur instead.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
                 Picker("Accent color", selection: $settings.accentChoice) {
-                    ForEach(AccentChoice.allCases) { choice in
+                    // Matching the artwork only makes sense with the media player on.
+                    ForEach(AccentChoice.allCases.filter { settings.mediaEnabled || $0 != .artwork }) { choice in
                         Text(choice.title).tag(choice)
                     }
                 }
-                Toggle("Animated audio bars", isOn: $settings.showVisualizer)
-            }
-
-            Section("Live activity") {
-                Toggle("Peek the song title when the track changes", isOn: $settings.showTrackToasts)
-            }
-
-            Section("Clipboard") {
-                Toggle("Keep clipboard history", isOn: $settings.clipboardEnabled)
-                Stepper(value: $settings.clipboardLimit, in: 5...30) {
-                    Text("Remember \(settings.clipboardLimit) items")
-                }
-                .disabled(!settings.clipboardEnabled)
-                Button("Clear history") { clipboard.clear() }
-                Text("History stays in memory only and is gone when Islet quits. Items flagged as secrets by password managers are skipped.")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
             }
 
             Section("System") {
@@ -115,6 +156,7 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
+        .animation(.easeInOut(duration: 0.2), value: settings.enabledTabs)
         .frame(width: 480, height: 680)
     }
 

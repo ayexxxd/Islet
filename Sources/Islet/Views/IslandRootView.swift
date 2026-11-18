@@ -46,7 +46,7 @@ struct IslandRootView: View {
         .clipShape(shape)
         .shadow(color: Color.black.opacity(state.isExpanded ? 0.35 : 0), radius: 20, x: 0, y: 10)
         .scaleEffect(isPeeking ? 1.03 : 1, anchor: .top)
-        .onDrop(of: [UTType.fileURL], isTargeted: $state.isDropTargeted) { providers in
+        .onDrop(of: settings.shelfEnabled ? [UTType.fileURL] : [], isTargeted: $state.isDropTargeted) { providers in
             shelf.handleDrop(providers)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
@@ -184,15 +184,21 @@ struct ExpandedView: View {
             header
                 .frame(height: state.headerHeight)
             ZStack {
-                switch state.tab {
-                case .media:
+                switch state.visibleTab {
+                case .some(.media):
                     MediaView().transition(.islandContent)
-                case .notes:
+                case .some(.notes):
                     NotesView().transition(.islandContent)
-                case .tools:
+                case .some(.tools):
                     ToolsView().transition(.islandContent)
+                case .some(.extras):
+                    ExtrasView().transition(.islandContent)
+                case .none:
+                    placeholder("switch.2", "Everything is switched off. Turn features back on in Settings.")
+                        .transition(.islandContent)
                 }
             }
+            .animation(settings.animation, value: state.visibleTab)
             .frame(height: state.contentHeight)
         }
     }
@@ -200,11 +206,12 @@ struct ExpandedView: View {
     private var header: some View {
         HStack(spacing: 0) {
             HStack(spacing: 6) {
-                ForEach(IslandTab.allCases) { tab in
+                // A lone tab needs no switcher.
+                ForEach(settings.enabledTabs.count > 1 ? settings.enabledTabs : []) { tab in
                     IconButton(
                         systemName: tab.icon,
                         size: 11,
-                        isOn: state.tab == tab,
+                        isOn: state.visibleTab == tab,
                         tint: accent,
                         help: tab.title
                     ) {
@@ -219,23 +226,36 @@ struct ExpandedView: View {
                 .frame(width: state.hasPhysicalNotch ? state.notch.width : 0)
 
             HStack(spacing: 6) {
-                IconButton(
-                    systemName: keepAwake.isOn ? "cup.and.saucer.fill" : "cup.and.saucer",
-                    size: 10,
-                    isOn: keepAwake.isOn,
-                    tint: accent,
-                    help: "Keep display awake"
-                ) {
-                    keepAwake.toggle()
+                if settings.passwordsEnabled {
+                    IconButton(systemName: "key.fill", size: 10, help: "Open Passwords") {
+                        state.collapse()
+                        QuickActions.openPasswords()
+                    }
+                    .transition(.scale.combined(with: .opacity))
                 }
-                IconButton(
-                    systemName: state.isPinned ? "pin.fill" : "pin",
-                    size: 10,
-                    isOn: state.isPinned,
-                    tint: accent,
-                    help: "Keep island open"
-                ) {
-                    state.isPinned.toggle()
+                if settings.keepAwakeEnabled {
+                    IconButton(
+                        systemName: keepAwake.isOn ? "cup.and.saucer.fill" : "cup.and.saucer",
+                        size: 10,
+                        isOn: keepAwake.isOn,
+                        tint: accent,
+                        help: "Keep display awake"
+                    ) {
+                        keepAwake.toggle()
+                    }
+                    .transition(.scale.combined(with: .opacity))
+                }
+                if settings.pinButtonEnabled {
+                    IconButton(
+                        systemName: state.isPinned ? "pin.fill" : "pin",
+                        size: 10,
+                        isOn: state.isPinned,
+                        tint: accent,
+                        help: "Keep island open"
+                    ) {
+                        state.isPinned.toggle()
+                    }
+                    .transition(.scale.combined(with: .opacity))
                 }
                 IconButton(systemName: "gearshape.fill", size: 11, help: "Settings") {
                     state.onOpenSettings?()

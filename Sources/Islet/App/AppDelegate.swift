@@ -23,29 +23,41 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             .store(in: &bag)
         setStatusItem(visible: model.settings.showMenuBarIcon)
 
-        model.settings.$hotKeysEnabled
+        let s = model.settings
+        Publishers.CombineLatest3(s.$hotKeysEnabled, s.$notesEnabled, s.$passwordsEnabled)
             .receive(on: RunLoop.main)
-            .sink { [weak self] enabled in self?.setHotKeys(enabled: enabled) }
+            .sink { [weak self] _ in
+                // Read after the change lands, so the newest values are used.
+                DispatchQueue.main.async { self?.updateHotKeys() }
+            }
             .store(in: &bag)
-        setHotKeys(enabled: model.settings.hotKeysEnabled)
 
         model.start()
     }
 
-    private func setHotKeys(enabled: Bool) {
+    /// Registers only the shortcuts whose features are switched on.
+    private func updateHotKeys() {
         let center = HotKeyCenter.shared
-        guard enabled else {
-            center.unregister(id: 1)
-            center.unregister(id: 2)
-            return
-        }
+        let s = model.settings
+        for id: UInt32 in [1, 2, 3] { center.unregister(id: id) }
+        guard s.hotKeysEnabled else { return }
+
         // Control + Option + Space
         center.register(id: 1, keyCode: 49, modifiers: HotKeyCenter.controlOption) { [weak self] in
             self?.island.toggleFromKeyboard()
         }
         // Control + Option + N
-        center.register(id: 2, keyCode: 45, modifiers: HotKeyCenter.controlOption) { [weak self] in
-            self?.island.quickNote()
+        if s.notesEnabled {
+            center.register(id: 2, keyCode: 45, modifiers: HotKeyCenter.controlOption) { [weak self] in
+                self?.island.quickNote()
+            }
+        }
+        // Control + Option + P
+        if s.passwordsEnabled {
+            center.register(id: 3, keyCode: 35, modifiers: HotKeyCenter.controlOption) { [weak self] in
+                self?.model.state.collapse()
+                QuickActions.openPasswords()
+            }
         }
     }
 
@@ -63,6 +75,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
             let menu = NSMenu()
             menu.addItem(withTitle: "Open Island", action: #selector(toggleIsland), keyEquivalent: "").target = self
+            menu.addItem(withTitle: "Open Passwords", action: #selector(openPasswords), keyEquivalent: "").target = self
             menu.addItem(withTitle: "Settings…", action: #selector(openSettings), keyEquivalent: ",").target = self
             menu.addItem(.separator())
             menu.addItem(withTitle: "Quit Islet", action: #selector(quit), keyEquivalent: "q").target = self
@@ -77,6 +90,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     @objc private func toggleIsland() {
         model.state.isPinned = true
         model.state.expand()
+    }
+
+    @objc private func openPasswords() {
+        QuickActions.openPasswords()
     }
 
     @objc private func quit() {

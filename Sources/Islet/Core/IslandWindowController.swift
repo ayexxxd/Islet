@@ -84,6 +84,8 @@ final class IslandWindowController {
             .environmentObject(model.clipboard)
             .environmentObject(model.shelf)
             .environmentObject(model.keepAwake)
+            .environmentObject(model.calendar)
+            .environmentObject(model.camera)
         let host = FirstMouseHostingView(rootView: root)
         host.frame = NSRect(origin: .zero, size: Self.canvas)
         host.autoresizingMask = [.width, .height]

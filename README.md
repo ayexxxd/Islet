@@ -22,7 +22,11 @@ bundled app, because the Automation permission text lives in `Info.plist`.
 - Header. Keep awake toggle, pin, settings.
 - Closed state. Artwork and animated bars beside the notch while music plays,
   and a small toast when the track changes.
-- Global shortcuts. Control Option Space toggles the island, Control Option N starts a quick note.
+- Extras tab. Upcoming calendar events, a camera mirror, and quick actions (sleep display, dark mode, screen saver).
+- Media extras. Shuffle and player volume. AirDrop straight from the shelf.
+- Global shortcuts. Control Option Space toggles the island, Control Option N starts a quick note, Control Option P opens Passwords.
+- Passwords shortcut. A key button in the header, in Quick actions and in the menu bar menu.
+- Every feature can be switched off in Settings, Features. Switched-off features are removed from the island, and empty tabs disappear.
 - Adjustable open size and notch outline width in Settings.
 - Liquid Glass body on macOS 26 and later, switchable to solid black in Settings.
 

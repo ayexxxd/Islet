@@ -3,11 +3,18 @@ import SwiftUI
 
 /// Tools tab with clipboard history and a file shelf.
 struct ToolsView: View {
+    @EnvironmentObject var settings: AppSettings
+
     var body: some View {
         HStack(spacing: 8) {
-            ClipboardCard()
-            ShelfCard()
-                .frame(width: 230)
+            if settings.clipboardEnabled {
+                ClipboardCard()
+            }
+            if settings.shelfEnabled {
+                // Takes the full width when it is the only card.
+                ShelfCard()
+                    .frame(width: settings.clipboardEnabled ? 230 : nil)
+            }
         }
         .padding(.horizontal, 14)
         .padding(.top, 6)
@@ -33,9 +40,7 @@ struct ClipboardCard: View {
                 .buttonStyle(IslandButtonStyle())
             }
         } content: {
-            if !settings.clipboardEnabled {
-                placeholder("clipboard", "History is off in Settings")
-            } else if clipboard.items.isEmpty {
+            if clipboard.items.isEmpty {
                 placeholder("clipboard", "Copy some text and it shows up here")
             } else {
                 ScrollView(.vertical, showsIndicators: false) {
@@ -98,6 +103,12 @@ struct ShelfCard: View {
     var body: some View {
         Card(title: "Shelf") {
             if !shelf.urls.isEmpty {
+                Button(action: { NSSharingService(named: .sendViaAirDrop)?.perform(withItems: shelf.urls) }) {
+                    Text("AirDrop")
+                        .font(.system(size: 9, weight: .semibold))
+                        .foregroundColor(accent)
+                }
+                .buttonStyle(IslandButtonStyle())
                 Button(action: { withAnimation(settings.animation) { shelf.clear() } }) {
                     Text("Clear")
                         .font(.system(size: 9, weight: .semibold))

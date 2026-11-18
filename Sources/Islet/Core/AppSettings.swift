@@ -69,6 +69,23 @@ final class AppSettings: ObservableObject {
     @Published var closeDelay: Double { didSet { defaults.set(closeDelay, forKey: "closeDelay") } }
     @Published var hotKeysEnabled: Bool { didSet { defaults.set(hotKeysEnabled, forKey: "hotKeysEnabled") } }
 
+    // Features. Anything switched off is removed from the island entirely.
+    @Published var mediaEnabled: Bool {
+        didSet {
+            defaults.set(mediaEnabled, forKey: "mediaEnabled")
+            if !mediaEnabled && accentChoice == .artwork { accentChoice = .white }
+        }
+    }
+    @Published var playerExtrasEnabled: Bool { didSet { defaults.set(playerExtrasEnabled, forKey: "playerExtrasEnabled") } }
+    @Published var notesEnabled: Bool { didSet { defaults.set(notesEnabled, forKey: "notesEnabled") } }
+    @Published var shelfEnabled: Bool { didSet { defaults.set(shelfEnabled, forKey: "shelfEnabled") } }
+    @Published var calendarEnabled: Bool { didSet { defaults.set(calendarEnabled, forKey: "calendarEnabled") } }
+    @Published var mirrorEnabled: Bool { didSet { defaults.set(mirrorEnabled, forKey: "mirrorEnabled") } }
+    @Published var quickActionsEnabled: Bool { didSet { defaults.set(quickActionsEnabled, forKey: "quickActionsEnabled") } }
+    @Published var keepAwakeEnabled: Bool { didSet { defaults.set(keepAwakeEnabled, forKey: "keepAwakeEnabled") } }
+    @Published var pinButtonEnabled: Bool { didSet { defaults.set(pinButtonEnabled, forKey: "pinButtonEnabled") } }
+    @Published var passwordsEnabled: Bool { didSet { defaults.set(passwordsEnabled, forKey: "passwordsEnabled") } }
+
     // Layout
     @Published var expandedWidth: Double { didSet { defaults.set(expandedWidth, forKey: "expandedWidth") } }
     @Published var contentHeight: Double { didSet { defaults.set(contentHeight, forKey: "contentHeight") } }
@@ -96,6 +113,16 @@ final class AppSettings: ObservableObject {
         rememberLastTab = d.object(forKey: "rememberLastTab") as? Bool ?? false
         closeDelay = d.object(forKey: "closeDelay") as? Double ?? 0.4
         hotKeysEnabled = d.object(forKey: "hotKeysEnabled") as? Bool ?? true
+        mediaEnabled = d.object(forKey: "mediaEnabled") as? Bool ?? true
+        playerExtrasEnabled = d.object(forKey: "playerExtrasEnabled") as? Bool ?? true
+        notesEnabled = d.object(forKey: "notesEnabled") as? Bool ?? true
+        shelfEnabled = d.object(forKey: "shelfEnabled") as? Bool ?? true
+        calendarEnabled = d.object(forKey: "calendarEnabled") as? Bool ?? true
+        mirrorEnabled = d.object(forKey: "mirrorEnabled") as? Bool ?? true
+        quickActionsEnabled = d.object(forKey: "quickActionsEnabled") as? Bool ?? true
+        keepAwakeEnabled = d.object(forKey: "keepAwakeEnabled") as? Bool ?? true
+        pinButtonEnabled = d.object(forKey: "pinButtonEnabled") as? Bool ?? true
+        passwordsEnabled = d.object(forKey: "passwordsEnabled") as? Bool ?? true
         expandedWidth = d.object(forKey: "expandedWidth") as? Double ?? 600
         contentHeight = d.object(forKey: "contentHeight") as? Double ?? 168
         notchWidthOffset = d.object(forKey: "notchWidthOffset") as? Double ?? 0
@@ -108,6 +135,20 @@ final class AppSettings: ObservableObject {
     }
 
     var animation: Animation { animationStyle.animation }
+
+    /// A tab is only shown when at least one of its features is on.
+    func isTabEnabled(_ tab: IslandTab) -> Bool {
+        switch tab {
+        case .media: return mediaEnabled
+        case .notes: return notesEnabled
+        case .tools: return clipboardEnabled || shelfEnabled
+        case .extras: return calendarEnabled || mirrorEnabled || quickActionsEnabled
+        }
+    }
+
+    var enabledTabs: [IslandTab] {
+        IslandTab.allCases.filter { isTabEnabled($0) }
+    }
 
     /// Accent used across the island. Falls back to the artwork tint.
     func accent(artworkTint: Color) -> Color {
